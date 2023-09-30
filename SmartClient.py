@@ -5,7 +5,7 @@ import re
 REDIRECT_LIMIT = 0
 
 class SmartClient:
-    def __init__(self,url,port=443):
+    def __init__(self,url,port=80):
         """
         Constructor for SmartClient.
 
@@ -21,6 +21,12 @@ class SmartClient:
             raise ValueError("Invalid web port# [Hint: 80(HTTP), 443(HTTPS)]")
         
         self.port = 80 if (port == 80) else 443
+        scheme = re.search(r"(https?://).*",url,re.IGNORECASE)
+        self.scheme = scheme.group(1) if scheme else ""
+        
+        if scheme:
+            self.port = 80 if self.scheme=="http://" else 443
+            print(f"Scheme detected: '{self.scheme}'\r\nUsing port :{self.port} for connection.")
         
         #Formatting input.
         if url.startswith(('http://', 'https://')):
@@ -33,7 +39,20 @@ class SmartClient:
                 self.path = "/"
             else:
                 self.path = "/" + parts[1]
-                          
+
+    def generate_defalt_connecton(self):
+        s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        s.settimeout(10)
+        try:
+            s.connect((self.host, self.port))
+        except Exception as e:
+            print(f"Generation defalt socket connection failed: {e}.")
+            s.close()
+            self.port = 443
+            return self.generate_connection()
+        
+        return s
+                         
     def generate_connection(self):
         """
         Generate socket and ssl socket and do connect.
@@ -54,11 +73,13 @@ class SmartClient:
             ssl_soc = context.wrap_socket(s,server_hostname=self.host)
         except (ssl.SSLError, OSError) as e:
             print(f"Network connection failed: {e}")
-        
+            
         try:
             ssl_soc.connect((self.host,self.port))
         except ssl.SSLError as e:
-            print(f"Negotiation failure: {e}")
+            print(f"Negotiation failure : {e}, with Host: {self.host} Port: {self.port}: \r\n Try another port...")
+            self.port = 80 if self.port == 443 else 443
+            return self.generate_connection()
         except socket.gaierror as e:
             print(f"Invalid IP address or Hostname: {e}")
         except (OSError,socket.error) as e:
@@ -92,7 +113,14 @@ class SmartClient:
         
         status_code = response.split()[1]
         if status_code in ('301','302'):
-            dest = re.search(r'Location: (.+)',response).group(1)
+            dest = re.search(r'Location: (.+)',response).group(1).strip()
+            
+            scheme = re.search(r"(https?://).*",dest,re.IGNORECASE)
+            self.scheme = scheme.group(1) if scheme else ""
+            
+            if scheme:
+                self.port = 80 if self.scheme=="http://" else 443
+                print(f"Scheme detected: '{self.scheme}' \r\n Changing port to -----> {self.port}")
             
             if dest.startswith(('http://', 'https://')):
                 self.host = re.search(r'https?://([^/]+)/?', dest).group(1)
@@ -192,20 +220,29 @@ class SmartClient:
         """
         Main connect and control of SmartClient.
         """
-        ssl_soc = self.generate_connection()
-        request = f"GET {self.path} HTTP/1.1\r\nHost: {self.host}\r\nConnection:Keep-Alive\r\n\r\n"
-        try:
-            ssl_soc.sendall(request.encode(encoding="UTF-8", errors="ignore"))
-        except (ssl.SSLError,socket.error,OSError) as e:
-            print(f"Faild to send: {e}")
-        except Exception as e:
-            print(f"Unexpected Error: {e}")
+        request = f"GET {self.path} HTTP/1.1\r\nHost: {self.host}\r\nConnection: close\r\n\r\n"
+        if self.port == 443:
+            ssl_soc = self.generate_connection()
             
-        response = ssl_soc.recv(4096).decode(encoding="UTF-8", errors= "ignore") 
-        ssl_soc.close
+            try:
+                ssl_soc.sendall(request.encode(encoding="UTF-8", errors="ignore"))
+            except (ssl.SSLError,socket.error,OSError) as e:
+                print(f"Faild to send: {e}")
+            except Exception as e:
+                print(f"Unexpected Error: {e}")
+            
+            response = ssl_soc.recv(4096).decode()               
+            ssl_soc.close
+        else:
+            soc = self.generate_defalt_connecton()
+            soc.send(request.encode())
+            response = soc.recv(4096).decode()
+            soc.close()
+            
+            
         
         if self.handle_redirect(response):
-            self.connect()
+            return self.connect()
         
         cookie_pool = self.handle_cookies(response)
         
@@ -240,11 +277,11 @@ class SmartClient:
         
 if __name__ == "__main__":
     if len(sys.argv) != 2:
-        client = SmartClient("www.uvic.ca")
+        client = SmartClient("https://docs.engr.uvic.ca/docs/", 80)
         client.connect()
-
-    client = SmartClient(sys.argv[1])
-    client.connect()
+    else:
+        client = SmartClient(sys.argv[1])
+        client.connect()
     
     
     
