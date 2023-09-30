@@ -283,27 +283,3 @@ if __name__ == "__main__":
         client = SmartClient(sys.argv[1])
         client.connect()
     
-    
-    
-    
-    
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-                    
-        
-
-        
