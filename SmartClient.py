@@ -205,7 +205,7 @@ class SmartClient:
         context = ssl.create_default_context()
         context.set_alpn_protocols(['h2', 'http/1.1'])
         ssl_soc = context.wrap_socket(socket.socket(socket.AF_INET, socket.SOCK_STREAM),server_hostname=self.host)
-        ssl_soc.connect((self.host, self.port))
+        ssl_soc.connect((self.host, 443))
         if ssl_soc.selected_alpn_protocol() != None:
             if 'h2' in ssl_soc.selected_alpn_protocol():
                 ssl_soc.close()
@@ -277,7 +277,7 @@ class SmartClient:
         
 if __name__ == "__main__":
     if len(sys.argv) != 2:
-        client = SmartClient("https://docs.engr.uvic.ca/docs/", 80)
+        client = SmartClient("sub.ednovas.xyz", 80)
         client.connect()
     else:
         client = SmartClient(sys.argv[1])
