@@ -7,9 +7,13 @@ SmartClient is an advanced Python utility designed to interact with web servers 
 ## Features
 
 HTTP/2 Support: Determines if the server supports the HTTP/2 protocol.
+
 Cookie Handling: Extracts information about cookies, their expiration times, and their domain names.
+
 Password Protection Detection: Determines if the requested page is password-protected.
+
 Redirection: Handles and follows HTTP 301 and 302 redirections.
+
 Scheme Detection: Detects and considers the URL scheme (http:// or https://).
 
 ## Prerequisites
